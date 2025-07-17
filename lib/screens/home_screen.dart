@@ -1,40 +1,38 @@
-// lib/screens/home_screen.dart
-
 import 'package:flutter/material.dart';
-import '../models/option_entry.dart';
-import 'edit_dialog.dart';
+import '../models/option_entry.dart'; // OptionList, Option, 各 enum が定義されているファイル
+import 'edit_dialog.dart';            // EditDialog が定義されているファイル
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({Key? key}) : super(key: key);
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // デフォルトOFFオプション
+  final Option defaultOption = Option(
+    leftLaneOption: LaneOptionType.off,
+    rightLaneOption: LaneOptionType.off,
+    assistPlayOption: AssistPlayType.off,
+    flipOption: FlipType.off,
+  );
+
+  // 初期データ：options リストはまず defaultOption のみ
   List<OptionList> items = [
     OptionList(
       songTitle: 'Fascination MAXX',
       difficulty: DifficultyType.hyper,
-      option1: Option(
-        leftLaneOption: LaneOptionType.sRan,
-        rightLaneOption: LaneOptionType.sRan,
-        assistPlayOption: AssistPlayType.legacy,
-        flipOption: FlipType.flip,
-      ),
-      option2: Option(
-        leftLaneOption: LaneOptionType.ran,
-        rightLaneOption: LaneOptionType.off,
-        assistPlayOption: AssistPlayType.off,
-        flipOption: FlipType.off,
-      ),
-      option3: Option(
-        leftLaneOption: LaneOptionType.mir,
-        rightLaneOption: LaneOptionType.rRan,
-        assistPlayOption: AssistPlayType.aScr,
-        flipOption: FlipType.off,
-      ),
+      options: [ // 最初は1つだけ
+        Option(
+          leftLaneOption: LaneOptionType.off,
+          rightLaneOption: LaneOptionType.off,
+          assistPlayOption: AssistPlayType.off,
+          flipOption: FlipType.off,
+        ),
+      ],
     ),
-    // 必要に応じてさらに追加…
+    // 必要なら 他の曲を同様に追加
   ];
 
   @override
@@ -43,28 +41,27 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(title: const Text('DP オプション一覧')),
       body: ListView.builder(
         itemCount: items.length,
-        itemBuilder: (context, i) {
-          final entry = items[i];
+        itemBuilder: (context, index) {
+          final entry = items[index];
           return ListTile(
-            title: Text(entry.displayText),
+            // タイトルは曲名のみ
+            title: Text(entry.songTitle),
+            // サブタイトルに Option1 のみ表示
+            subtitle: Text(entry.options.first.toLabel()),
             trailing: const Icon(Icons.edit),
             onTap: () async {
+              // 現状の options リストをそのまま渡す
               final updated = await showDialog<List<Option>>(
                 context: context,
                 barrierDismissible: true,
-                builder: (_) => EditDialog(
-                  initialOptions: [entry.option1, entry.option2, entry.option3],
-                ),
+                builder: (_) => EditDialog(initialOptions: entry.options),
               );
-              if (updated != null && updated.length == 3) {
+
+              // ダイアログで保存された場合は updated に要素が入っている
+              if (updated != null && updated.isNotEmpty) {
                 setState(() {
-                  items[i] = OptionList(
-                    songTitle: entry.songTitle,
-                    difficulty: entry.difficulty,
-                    option1: updated[0],
-                    option2: updated[1],
-                    option3: updated[2],
-                  );
+                  // 最大3つまでに制限して上書き
+                  entry.options = updated.take(3).toList();
                 });
               }
             },

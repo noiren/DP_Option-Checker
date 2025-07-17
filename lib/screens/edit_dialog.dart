@@ -30,6 +30,19 @@ class _EditDialogState extends State<EditDialog> {
         .toList();
   }
 
+  // 「追加」ボタンで呼ばれる
+  void _addOption() {
+    setState(() {
+      options.add(Option(
+        leftLaneOption: LaneOptionType.off,
+        rightLaneOption: LaneOptionType.off,
+        assistPlayOption: AssistPlayType.off,
+        flipOption: FlipType.off,
+      ));
+      isEditing = true; // 追加したら即編集状態にしてもOK
+    });
+  }
+
   void _toggleEdit() {
     setState(() => isEditing = true);
   }
@@ -77,6 +90,13 @@ class _EditDialogState extends State<EditDialog> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Text(opt.toLabel(), style: const TextStyle(fontSize: 16)),
+                ),
+              // ここで「追加ボタン」を表示
+              if (options.length < 3)
+                TextButton.icon(
+                  onPressed: _addOption,
+                  icon: const Icon(Icons.add),
+                  label: const Text('オプションを追加'),
                 ),
             ] else ...[
               // 編集モード：それぞれプルダウン

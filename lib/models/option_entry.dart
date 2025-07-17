@@ -76,7 +76,7 @@ class Option {
     }
     final laneLabel = '${lane(leftLaneOption)} / ${lane(rightLaneOption)}';
     final assistLabel = assist(assistPlayOption);
-    final flipLabel = flipOption == FlipType.flip ? 'FLIP' : '';
+    final flipLabel = flipOption == FlipType.flip ? 'FLIP' : 'OFF';
     return [laneLabel, assistLabel, flipLabel].where((s) => s.isNotEmpty).join(' / ');
   }
 }
@@ -85,63 +85,42 @@ class Option {
 class OptionList {
   final String songTitle;
   final DifficultyType difficulty;
-  Option option1;
-  Option option2;
-  Option option3;
+  List<Option> options;
 
   OptionList({
     required this.songTitle,
     required this.difficulty,
-    required this.option1,
-    required this.option2,
-    required this.option3,
+    required this.options,
   });
 
-  /// 一行表示用ロジック
+  /// 一行表示用
   String get displayText {
-    // 難易度文字列
-    String diffLabel;
-    switch (difficulty) {
+    // 難易度
+    String diffLabel = _diffToString(difficulty);
+
+    // 先頭のオプションだけサブタイトルで見せたいときは
+    // options.first.toLabel()
+
+    // 一括表示用（全オプションを “ | ” で繋ぐ or キャッチ文言）
+    // （全裸判定などはこの中でも可能です）
+    final labels = options.map((o) => o.toLabel()).toList();
+    final body = labels.join(' | ');
+
+    return '$songTitle | ($diffLabel) | $body';
+  }
+
+  String _diffToString(DifficultyType d) {
+    switch (d) {
       case DifficultyType.beginner:
-        diffLabel = 'BEGINNER';
-        break;
+        return 'BEGINNER';
       case DifficultyType.normal:
-        diffLabel = 'NORMAL';
-        break;
+        return 'NORMAL';
       case DifficultyType.hyper:
-        diffLabel = 'HYPER';
-        break;
+        return 'HYPER';
       case DifficultyType.another:
-        diffLabel = 'ANOTHER';
-        break;
+        return 'ANOTHER';
       case DifficultyType.leggendaria:
-        diffLabel = 'LEGGENDARIA';
-        break;
+        return 'LEGGENDARIA';
     }
-
-    // 全裸判定
-    final bothSRan = option1.leftLaneOption == LaneOptionType.sRan &&
-        option1.rightLaneOption == LaneOptionType.sRan &&
-        option2.leftLaneOption == LaneOptionType.sRan &&
-        option2.rightLaneOption == LaneOptionType.sRan;
-    final anyLegacy = option1.assistPlayOption == AssistPlayType.legacy ||
-        option2.assistPlayOption == AssistPlayType.legacy;
-    final anyFlip = option1.flipOption == FlipType.flip ||
-        option2.flipOption == FlipType.flip;
-
-    String optionLabel;
-    if (bothSRan && anyLegacy && anyFlip) {
-      optionLabel = '全裸';
-    } else if (bothSRan && anyFlip) {
-      optionLabel = '脳筋義正';
-    } else if (bothSRan) {
-      optionLabel = '脳筋正義';
-    } else {
-      // 通常は３つ分を結合
-      optionLabel =
-      '${option1.toLabel()} | ${option2.toLabel()} | ${option3.toLabel()}';
-    }
-
-    return '$songTitle | ($diffLabel) | $optionLabel';
   }
 }
