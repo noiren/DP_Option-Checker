@@ -124,3 +124,32 @@ class OptionList {
     }
   }
 }
+
+extension LaneOptionTypeExtension on LaneOptionType {
+  String toLabel() {
+    switch (this) {
+      case LaneOptionType.off:  return 'OFF';
+      case LaneOptionType.ran:  return 'RAN';
+      case LaneOptionType.rRan: return 'R‑RAN';
+      case LaneOptionType.sRan: return 'S‑RAN';
+      case LaneOptionType.mir:  return 'MIR';
+    }
+  }
+}
+
+extension AssistPlayTypeExtension on AssistPlayType {
+  String toLabel() {
+    switch (this) {
+      case AssistPlayType.off:        return 'OFF';
+      case AssistPlayType.aScr:       return 'A‑SCR';
+      case AssistPlayType.legacy:     return 'LEGACY';
+      case AssistPlayType.aScrLegacy: return 'A‑SCR/LEGACY';
+    }
+  }
+}
+
+extension FlipTypeExtension on FlipType {
+  String toLabel() {
+    return this == FlipType.flip ? 'FLIP' : 'OFF';
+  }
+}
