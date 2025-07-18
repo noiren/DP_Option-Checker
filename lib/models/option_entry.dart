@@ -1,4 +1,4 @@
-// lib/models/option_entry.dart
+// 完全版 option_entry.dart （toLabel 拡張 & null安全対応）
 
 /// 難易度の列挙型
 enum DifficultyType {
@@ -13,23 +13,52 @@ enum DifficultyType {
 enum LaneOptionType {
   off,
   ran,
-  rRan,   // R‑RAN
-  sRan,   // S‑RAN
+  rRan,
+  sRan,
   mir,
 }
 
 /// アシストプレイの列挙型
 enum AssistPlayType {
   off,
-  aScr,        // A‑SCR
-  legacy,      // LEGACY
-  aScrLegacy,  // A‑SCR/LEGACY
+  aScr,
+  legacy,
+  aScrLegacy,
 }
 
 /// FLIP の列挙型
 enum FlipType {
   off,
   flip,
+}
+
+extension LaneOptionTypeExtension on LaneOptionType {
+  String toLabel() {
+    switch (this) {
+      case LaneOptionType.off: return 'OFF';
+      case LaneOptionType.ran: return 'RAN';
+      case LaneOptionType.rRan: return 'R‑RAN';
+      case LaneOptionType.sRan: return 'S‑RAN';
+      case LaneOptionType.mir: return 'MIR';
+    }
+  }
+}
+
+extension AssistPlayTypeExtension on AssistPlayType {
+  String toLabel() {
+    switch (this) {
+      case AssistPlayType.off: return 'OFF';
+      case AssistPlayType.aScr: return 'A‑SCR';
+      case AssistPlayType.legacy: return 'LEGACY';
+      case AssistPlayType.aScrLegacy: return 'A‑SCR/LEGACY';
+    }
+  }
+}
+
+extension FlipTypeExtension on FlipType {
+  String toLabel() {
+    return this == FlipType.flip ? 'FLIP' : 'OFF';
+  }
 }
 
 /// 単一オプション構造
@@ -46,123 +75,58 @@ class Option {
     required this.flipOption,
   });
 
-  /// enum → 表示用文字列変換
   String toLabel() {
-    String lane(LaneOptionType v) {
-      switch (v) {
-        case LaneOptionType.off:
-          return 'OFF';
-        case LaneOptionType.ran:
-          return 'RAN';
-        case LaneOptionType.rRan:
-          return 'R‑RAN';
-        case LaneOptionType.sRan:
-          return 'S‑RAN';
-        case LaneOptionType.mir:
-          return 'MIR';
-      }
-    }
-    String assist(AssistPlayType v) {
-      switch (v) {
-        case AssistPlayType.off:
-          return 'OFF';
-        case AssistPlayType.aScr:
-          return 'A‑SCR';
-        case AssistPlayType.legacy:
-          return 'LEGACY';
-        case AssistPlayType.aScrLegacy:
-          return 'A‑SCR/LEGACY';
-      }
-    }
-    final laneLabel = '${lane(leftLaneOption)} / ${lane(rightLaneOption)}';
-    final assistLabel = assist(assistPlayOption);
-    final flipLabel = flipOption == FlipType.flip ? 'FLIP' : 'OFF';
+    final laneLabel = '${leftLaneOption.toLabel()} / ${rightLaneOption.toLabel()}';
+    final assistLabel = assistPlayOption.toLabel();
+    final flipLabel = flipOption.toLabel();
     return [laneLabel, assistLabel, flipLabel].where((s) => s.isNotEmpty).join(' / ');
   }
 }
 
-/// 曲＋３つのオプションをまとめた構造
 class OptionList {
   final String songTitle;
   final DifficultyType difficulty;
+  final String? version;
+  final int? level;
+  final int? bpm;
   List<Option> options;
 
   OptionList({
     required this.songTitle,
     required this.difficulty,
+    this.version,
+    this.level,
+    this.bpm,
     required this.options,
   });
 
-  /// 一行表示用
   String get displayText {
-    // 難易度
-    String diffLabel = _diffToString(difficulty);
-
-    // 先頭のオプションだけサブタイトルで見せたいときは
-    // options.first.toLabel()
-
-    // 一括表示用（全オプションを “ | ” で繋ぐ or キャッチ文言）
-    // （全裸判定などはこの中でも可能です）
+    final diffLabel = _diffToString(difficulty);
     final labels = options.map((o) => o.toLabel()).toList();
     final body = labels.join(' | ');
-
     return '$songTitle | ($diffLabel) | $body';
   }
 
   String _diffToString(DifficultyType d) {
     switch (d) {
-      case DifficultyType.beginner:
-        return 'BEGINNER';
-      case DifficultyType.normal:
-        return 'NORMAL';
-      case DifficultyType.hyper:
-        return 'HYPER';
-      case DifficultyType.another:
-        return 'ANOTHER';
-      case DifficultyType.leggendaria:
-        return 'LEGGENDARIA';
+      case DifficultyType.beginner: return 'BEGINNER';
+      case DifficultyType.normal: return 'NORMAL';
+      case DifficultyType.hyper: return 'HYPER';
+      case DifficultyType.another: return 'ANOTHER';
+      case DifficultyType.leggendaria: return 'LEGGENDARIA';
     }
   }
-}
 
-extension LaneOptionTypeExtension on LaneOptionType {
-  String toLabel() {
-    switch (this) {
-      case LaneOptionType.off:  return 'OFF';
-      case LaneOptionType.ran:  return 'RAN';
-      case LaneOptionType.rRan: return 'R‑RAN';
-      case LaneOptionType.sRan: return 'S‑RAN';
-      case LaneOptionType.mir:  return 'MIR';
-    }
-  }
-}
-
-extension AssistPlayTypeExtension on AssistPlayType {
-  String toLabel() {
-    switch (this) {
-      case AssistPlayType.off:        return 'OFF';
-      case AssistPlayType.aScr:       return 'A‑SCR';
-      case AssistPlayType.legacy:     return 'LEGACY';
-      case AssistPlayType.aScrLegacy: return 'A‑SCR/LEGACY';
-    }
-  }
-}
-
-extension FlipTypeExtension on FlipType {
-  String toLabel() {
-    return this == FlipType.flip ? 'FLIP' : 'OFF';
-  }
-}
-
-extension OptionListFactory on OptionList {
-  static OptionList fromJson(Map<String, dynamic> json) {
-    final difficulty = DifficultyType.values.firstWhere(
-          (e) => e.name.toLowerCase() == json['Difficulty'].toString().toLowerCase(),
-      orElse: () => DifficultyType.normal,
-    );
+  factory OptionList.fromJson(Map<String, dynamic> json) {
     return OptionList(
       songTitle: json['SongTitle'] as String,
-      difficulty: difficulty,
+      difficulty: DifficultyType.values.firstWhere(
+            (e) => e.name.toLowerCase() == json['Difficulty'].toString().toLowerCase(),
+        orElse: () => DifficultyType.normal,
+      ),
+      version: json['Version'] as String?,
+      level: json['Level'] is int ? json['Level'] as int : int.tryParse(json['Level']?.toString() ?? ''),
+      bpm: json['BPM'] is int ? json['BPM'] as int : int.tryParse(json['BPM']?.toString() ?? ''),
       options: [
         Option(
           leftLaneOption: LaneOptionType.off,
@@ -173,4 +137,8 @@ extension OptionListFactory on OptionList {
       ],
     );
   }
+}
+
+extension OptionListFactory on OptionList {
+  static OptionList fromJson(Map<String, dynamic> json) => OptionList.fromJson(json);
 }

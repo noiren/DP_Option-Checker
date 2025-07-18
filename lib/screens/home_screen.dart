@@ -14,7 +14,13 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   List<OptionList> allItems = [];
   String searchQuery = '';
+
+  // フィルタ状態
   DifficultyType? selectedDifficulty;
+  String? selectedVersion;
+  int? selectedLevel;
+  double bpmMin = 0;
+  double bpmMax = 300;
 
   @override
   void initState() {
@@ -25,9 +31,18 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _loadJsonFromAssets() async {
     final jsonStr = await rootBundle.loadString('assets/data/dp.json');
     final jsonList = jsonDecode(jsonStr) as List<dynamic>;
-
     setState(() {
       allItems = jsonList.map((e) => OptionListFactory.fromJson(e)).toList();
+    });
+  }
+
+  void _resetAllFilters() {
+    setState(() {
+      selectedDifficulty = null;
+      selectedVersion = null;
+      selectedLevel = null;
+      bpmMin = 0;
+      bpmMax = 300;
     });
   }
 
@@ -35,8 +50,12 @@ class HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final filtered = allItems.where((e) {
       final matchesSearch = e.songTitle.toLowerCase().contains(searchQuery.toLowerCase());
-      final matchesFilter = selectedDifficulty == null || e.difficulty == selectedDifficulty;
-      return matchesSearch && matchesFilter;
+      final matchesDifficulty = selectedDifficulty == null || e.difficulty == selectedDifficulty;
+      final matchesVersion = selectedVersion == null || e.version == selectedVersion;
+      final matchesLevel = selectedLevel == null || e.level == selectedLevel;
+      final bpmValue = e.bpm?.toDouble() ?? 0;
+      final matchesBpm = bpmValue >= bpmMin && bpmValue <= bpmMax;
+      return matchesSearch && matchesDifficulty && matchesVersion && matchesLevel && matchesBpm;
     }).toList();
 
     return Scaffold(
@@ -61,7 +80,7 @@ class HomeScreenState extends State<HomeScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.filter_list, color: Colors.white),
-              onPressed: _showFilterDialog,
+              onPressed: _showFilterPanel,
             ),
           ],
         ),
@@ -72,18 +91,14 @@ class HomeScreenState extends State<HomeScreen> {
           final entry = filtered[index];
           final optionLabel = entry.options.isNotEmpty ? entry.options.first.toLabel() : 'OFF';
           return Card(
-            color: const Color(0xFF2A2A2A),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 2,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              leading: const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
-              title: Text(entry.songTitle, style: const TextStyle(fontSize: 18)),
-              subtitle: Text(
-                '${entry.difficulty.name.toUpperCase()} | $optionLabel',
-                style: const TextStyle(fontSize: 14),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              leading: const Icon(Icons.music_note, color: Colors.cyanAccent),
+              title: Text(entry.songTitle),
+              subtitle: Text('${entry.difficulty.name.toUpperCase()} | $optionLabel'),
+              trailing: const Icon(Icons.chevron_right),
               onTap: () async {
                 final updated = await showDialog<List<Option>>(
                   context: context,
@@ -92,8 +107,7 @@ class HomeScreenState extends State<HomeScreen> {
                 );
                 if (updated != null && updated.isNotEmpty) {
                   setState(() {
-                    final orig = allItems.firstWhere((e) => e.songTitle == entry.songTitle);
-                    orig.options = updated.take(3).toList();
+                    entry.options = updated.take(3).toList();
                   });
                 }
               },
@@ -104,29 +118,92 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showFilterDialog() {
-    showDialog(
+  void _showFilterPanel() {
+    showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('難易度でフィルタ'),
-          content: DropdownButton<DifficultyType?>(
-            isExpanded: true,
-            value: selectedDifficulty,
-            hint: const Text('全て表示'),
-            items: [
-              const DropdownMenuItem<DifficultyType?>(value: null, child: Text('全て表示')),
-              ...DifficultyType.values.map((d) => DropdownMenuItem(
-                value: d,
-                child: Text(d.name.toUpperCase()),
-              ))
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        final versions = allItems.map((e) => e.version).whereType<String>().toSet().toList();
+        final levels = allItems.map((e) => e.level).whereType<int>().toSet().toList()..sort();
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('フィルタ', style: Theme.of(context).textTheme.titleLarge),
+                  TextButton(onPressed: _resetAllFilters, child: const Text('リセット')),
+                ],
+              ),
+              const Divider(color: Colors.white54),
+              DropdownButtonFormField<DifficultyType?>(
+                decoration: const InputDecoration(labelText: '難易度'),
+                value: selectedDifficulty,
+                items: [
+                  const DropdownMenuItem<DifficultyType?>(value: null, child: Text('全て')),
+                  ...DifficultyType.values.map((d) => DropdownMenuItem(
+                    value: d,
+                    child: Text(d.name.toUpperCase()),
+                  )),
+                ],
+                onChanged: (v) => setState(() => selectedDifficulty = v),
+              ),
+              DropdownButtonFormField<String?>(
+                decoration: const InputDecoration(labelText: 'バージョン'),
+                value: selectedVersion,
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('全て')),
+                  ...versions.map((v) => DropdownMenuItem(
+                    value: v,
+                    child: Text(v),
+                  )),
+                ],
+                onChanged: (v) => setState(() => selectedVersion = v),
+              ),
+              DropdownButtonFormField<int?>(
+                decoration: const InputDecoration(labelText: 'レベル'),
+                value: selectedLevel,
+                items: [
+                  const DropdownMenuItem<int?>(value: null, child: Text('全て')),
+                  ...levels.map((l) => DropdownMenuItem(
+                    value: l,
+                    child: Text(l.toString()),
+                  )),
+                ],
+                onChanged: (v) => setState(() => selectedLevel = v),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: const InputDecoration(labelText: 'BPM最小'),
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) {
+                        bpmMin = double.tryParse(v) ?? 0;
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      decoration: const InputDecoration(labelText: 'BPM最大'),
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) {
+                        bpmMax = double.tryParse(v) ?? 300;
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ],
-            onChanged: (v) {
-              setState(() {
-                selectedDifficulty = v;
-              });
-              Navigator.pop(context);
-            },
           ),
         );
       },
