@@ -1,16 +1,17 @@
+
 import 'package:flutter/material.dart';
-import '../models/option_entry.dart'; // OptionList, Option, 各 enum が定義されているファイル
-import 'edit_dialog.dart';            // EditDialog が定義されているファイル
+import '../models/option_entry.dart';
+import 'edit_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  HomeScreenState createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  // デフォルトOFFオプション
+class HomeScreenState extends State<HomeScreen> {
+  // デフォルトOFFオプションを１つだけ保持
   final Option defaultOption = Option(
     leftLaneOption: LaneOptionType.off,
     rightLaneOption: LaneOptionType.off,
@@ -18,12 +19,12 @@ class _HomeScreenState extends State<HomeScreen> {
     flipOption: FlipType.off,
   );
 
-  // 初期データ：options リストはまず defaultOption のみ
+  // 初期データ: optionsリストは最初 defaultOption のみ
   List<OptionList> items = [
     OptionList(
       songTitle: 'Fascination MAXX',
       difficulty: DifficultyType.hyper,
-      options: [ // 最初は1つだけ
+      options: [
         Option(
           leftLaneOption: LaneOptionType.off,
           rightLaneOption: LaneOptionType.off,
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
     ),
-    // 必要なら 他の曲を同様に追加
+    // 他の曲を追加したい場合はここに同様のOptionListを追加
   ];
 
   @override
@@ -43,28 +44,32 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final entry = items[index];
-          return ListTile(
-            // タイトルは曲名のみ
-            title: Text(entry.songTitle),
-            // サブタイトルに Option1 のみ表示
-            subtitle: Text(entry.options.first.toLabel()),
-            trailing: const Icon(Icons.edit),
-            onTap: () async {
-              // 現状の options リストをそのまま渡す
-              final updated = await showDialog<List<Option>>(
-                context: context,
-                barrierDismissible: true,
-                builder: (_) => EditDialog(initialOptions: entry.options),
-              );
+          return Card(
+            color: const Color(0xFF2A2A2A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leading: const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
+              title: Text(entry.songTitle, style: const TextStyle(fontSize: 18)),
+              subtitle: Text(entry.options.first.toLabel(), style: const TextStyle(fontSize: 14)),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              onTap: () async {
+                // 現在の options リストを渡してダイアログを呼び出し
+                final updated = await showDialog<List<Option>>(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (_) => EditDialog(initialOptions: entry.options),
+                );
 
-              // ダイアログで保存された場合は updated に要素が入っている
-              if (updated != null && updated.isNotEmpty) {
-                setState(() {
-                  // 最大3つまでに制限して上書き
-                  entry.options = updated.take(3).toList();
-                });
-              }
-            },
+                // 保存された場合のみ、options を上書き（最大3つに制限）
+                if (updated != null && updated.isNotEmpty) {
+                  setState(() {
+                    entry.options = updated.take(3).toList();
+                  });
+                }
+              },
+            ),
           );
         },
       ),
