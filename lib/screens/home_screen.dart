@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import '../models/option_entry.dart';
 import 'edit_dialog.dart';
 
@@ -10,89 +12,78 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  // デフォルトOFFオプション
-  final Option defaultOption = Option(
-    leftLaneOption: LaneOptionType.off,
-    rightLaneOption: LaneOptionType.off,
-    assistPlayOption: AssistPlayType.off,
-    flipOption: FlipType.off,
-  );
-
-  // モックデータ
-  List<OptionList> allItems = [
-    OptionList(
-      songTitle: 'Fascination MAXX',
-      difficulty: DifficultyType.hyper,
-      options: [Option(
-        leftLaneOption: LaneOptionType.off,
-        rightLaneOption: LaneOptionType.off,
-        assistPlayOption: AssistPlayType.off,
-        flipOption: FlipType.off,
-      )],
-    ),
-    OptionList(
-      songTitle: '冥',
-      difficulty: DifficultyType.another,
-      options: [Option(
-        leftLaneOption: LaneOptionType.off,
-        rightLaneOption: LaneOptionType.off,
-        assistPlayOption: AssistPlayType.off,
-        flipOption: FlipType.off,
-      )],
-    ),
-    // 他の曲…
-  ];
-
-  // ユーザー入力に応じて絞り込む
+  List<OptionList> allItems = [];
   String searchQuery = '';
+  DifficultyType? selectedDifficulty;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJsonFromAssets();
+  }
+
+  Future<void> _loadJsonFromAssets() async {
+    final jsonStr = await rootBundle.loadString('assets/data/dp.json');
+    final jsonList = jsonDecode(jsonStr) as List<dynamic>;
+
+    setState(() {
+      allItems = jsonList.map((e) => OptionListFactory.fromJson(e)).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 検索文字列にマッチするものだけを表示
-    final filtered = allItems
-        .where((e) =>
-        e.songTitle.toLowerCase().contains(searchQuery.toLowerCase()))
-        .toList();
+    final filtered = allItems.where((e) {
+      final matchesSearch = e.songTitle.toLowerCase().contains(searchQuery.toLowerCase());
+      final matchesFilter = selectedDifficulty == null || e.difficulty == selectedDifficulty;
+      return matchesSearch && matchesFilter;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        // 高さを拡張して上に余白を確保
         toolbarHeight: 100,
-        // 検索バーを下に20px下げる
-        title: Padding(
-          padding: const EdgeInsets.only(top: 20),
-          child: TextField(
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
-              hintText: '曲名で検索',
-              hintStyle: TextStyle(color: Colors.white54),
-              border: InputBorder.none,
-              prefixIcon: Icon(Icons.search, color: Colors.white54),
+        title: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: TextField(
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: '曲名で検索',
+                    hintStyle: TextStyle(color: Colors.white54),
+                    border: InputBorder.none,
+                    prefixIcon: Icon(Icons.search, color: Colors.white54),
+                  ),
+                  onChanged: (v) => setState(() => searchQuery = v),
+                ),
+              ),
             ),
-            onChanged: (v) => setState(() => searchQuery = v),
-          ),
+            IconButton(
+              icon: const Icon(Icons.filter_list, color: Colors.white),
+              onPressed: _showFilterDialog,
+            ),
+          ],
         ),
       ),
       body: ListView.builder(
         itemCount: filtered.length,
         itemBuilder: (context, index) {
           final entry = filtered[index];
+          final optionLabel = entry.options.isNotEmpty ? entry.options.first.toLabel() : 'OFF';
           return Card(
             color: const Color(0xFF2A2A2A),
-            shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
-              contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              leading: const Icon(Icons.music_note,
-                  color: Colors.cyanAccent, size: 32),
-              title: Text(entry.songTitle,
-                  style: const TextStyle(fontSize: 18)),
-              subtitle: Text(entry.options.first.toLabel(),
-                  style: const TextStyle(fontSize: 14)),
-              trailing:
-              const Icon(Icons.chevron_right, color: Colors.white70),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leading: const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
+              title: Text(entry.songTitle, style: const TextStyle(fontSize: 18)),
+              subtitle: Text(
+                '${entry.difficulty.name.toUpperCase()} | $optionLabel',
+                style: const TextStyle(fontSize: 14),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
               onTap: () async {
                 final updated = await showDialog<List<Option>>(
                   context: context,
@@ -101,9 +92,7 @@ class HomeScreenState extends State<HomeScreen> {
                 );
                 if (updated != null && updated.isNotEmpty) {
                   setState(() {
-                    // 全アイテムを検索前データから更新
-                    final orig = allItems.firstWhere(
-                            (e) => e.songTitle == entry.songTitle);
+                    final orig = allItems.firstWhere((e) => e.songTitle == entry.songTitle);
                     orig.options = updated.take(3).toList();
                   });
                 }
@@ -112,6 +101,35 @@ class HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
+    );
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('難易度でフィルタ'),
+          content: DropdownButton<DifficultyType?>(
+            isExpanded: true,
+            value: selectedDifficulty,
+            hint: const Text('全て表示'),
+            items: [
+              const DropdownMenuItem<DifficultyType?>(value: null, child: Text('全て表示')),
+              ...DifficultyType.values.map((d) => DropdownMenuItem(
+                value: d,
+                child: Text(d.name.toUpperCase()),
+              ))
+            ],
+            onChanged: (v) {
+              setState(() {
+                selectedDifficulty = v;
+              });
+              Navigator.pop(context);
+            },
+          ),
+        );
+      },
     );
   }
 }

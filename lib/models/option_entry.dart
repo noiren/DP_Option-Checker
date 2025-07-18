@@ -153,3 +153,24 @@ extension FlipTypeExtension on FlipType {
     return this == FlipType.flip ? 'FLIP' : 'OFF';
   }
 }
+
+extension OptionListFactory on OptionList {
+  static OptionList fromJson(Map<String, dynamic> json) {
+    final difficulty = DifficultyType.values.firstWhere(
+          (e) => e.name.toLowerCase() == json['Difficulty'].toString().toLowerCase(),
+      orElse: () => DifficultyType.normal,
+    );
+    return OptionList(
+      songTitle: json['SongTitle'] as String,
+      difficulty: difficulty,
+      options: [
+        Option(
+          leftLaneOption: LaneOptionType.off,
+          rightLaneOption: LaneOptionType.off,
+          assistPlayOption: AssistPlayType.off,
+          flipOption: FlipType.off,
+        )
+      ],
+    );
+  }
+}
